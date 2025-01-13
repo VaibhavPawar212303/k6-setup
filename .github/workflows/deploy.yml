@@ -1,56 +1,54 @@
-name: Access EC2 Instance via SSH
+name: AWS EC2 Workflow
 
 on:
-  push:
-    branches:
-      - main
+  workflow_dispatch:
 
 jobs:
-  access-ec2:
+  manage-ec2-instance:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Set up SSH Key
-      run: |
-        # Create the .ssh directory if it doesn't exist
-        mkdir -p ~/.ssh
+      - name: Checkout code
+        uses: actions/checkout@v3
 
-        # Save the private SSH key as a file
-        echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/aws_key.pem
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
 
-        # Set proper permissions for the key
-        chmod 600 ~/.ssh/aws_key.pem
+      - name: Verify and Start Instance
+        run: |
+          INSTANCE_ID="i-0e3f6782567fea03a"
+          REGION="us-east-1"
 
-        echo "SSH key configured."
+          # Ensure the instance is running
+          STATE=$(aws ec2 describe-instances --instance-ids $INSTANCE_ID --region $REGION --query "Reservations[*].Instances[*].State.Name" --output text)
+          if [ "$STATE" != "running" ]; then
+            echo "Starting instance $INSTANCE_ID..."
+            aws ec2 start-instances --instance-ids $INSTANCE_ID --region $REGION
+            aws ec2 wait instance-running --instance-ids $INSTANCE_ID --region $REGION
+          fi
+          echo "Instance $INSTANCE_ID is running."
 
-    - name: Verify Instance State
-      run: |
-        INSTANCE_ID="i-0e3f6782567fea03a"
-        # Ensure the instance is running
-        STATE=$(aws ec2 describe-instances --instance-ids $INSTANCE_ID --query "Reservations[*].Instances[*].State.Name" --output text)
-        if [ "$STATE" != "running" ]; then
-          echo "Starting instance $INSTANCE_ID..."
-          aws ec2 start-instances --instance-ids $INSTANCE_ID
-          aws ec2 wait instance-running --instance-ids $INSTANCE_ID
-        fi
-        echo "Instance $INSTANCE_ID is running."
+      - name: Connect to Instance and List Directory
+        run: |
+          INSTANCE_ID="i-0e3f6782567fea03a"
+          REGION="us-east-1"
+          SSH_KEY="~/.ssh/aws_key.pem"
 
-    - name: Access EC2 Instance via SSH
-      run: |
-        INSTANCE_PUBLIC_IP=$(aws ec2 describe-instances \
-          --instance-ids i-0e3f6782567fea03a \
-          --query "Reservations[*].Instances[*].PublicIpAddress" \
-          --output text)
-        
-        if [ -z "$INSTANCE_PUBLIC_IP" ]; then
-          echo "Public IP not found for instance $INSTANCE_ID. Ensure it has a public IP assigned."
-          exit 1
-        fi
-        
-        echo "Connecting to instance $INSTANCE_ID at $INSTANCE_PUBLIC_IP..."
-        ssh -o StrictHostKeyChecking=no -i ~/.ssh/aws_key.pem ec2-user@$INSTANCE_PUBLIC_IP "ls -la"
-      env:
-        AWS_DEFAULT_REGION: us-east-1
-        AWS_REGION: us-east-1
-        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          # Retrieve the public DNS of the instance
+          PUBLIC_DNS=$(aws ec2 describe-instances --instance-ids $INSTANCE_ID --region $REGION --query "Reservations[*].Instances[*].PublicDnsName" --output text)
+
+          if [ -z "$PUBLIC_DNS" ]; then
+            echo "Public DNS for instance $INSTANCE_ID is not available."
+            exit 1
+          fi
+
+          echo "Connecting to instance $INSTANCE_ID at $PUBLIC_DNS..."
+
+          # List directory contents
+          ssh -i $SSH_KEY -o StrictHostKeyChecking=no ec2-user@$PUBLIC_DNS "ls -al"
+        env:
+          AWS_DEFAULT_REGION: us-east-1
