@@ -1,45 +1,40 @@
-name: Access EC2 Instance via SSH
+name: AWS EC2 Workflow
 
 on:
-  push:
-    branches:
-      - main
+  workflow_dispatch:
 
 jobs:
-  access-ec2:
+  manage-ec2-instance:
     runs-on: ubuntu-latest
-
     steps:
-    - name: Set up SSH Key
-      run: |
-        # Create the .ssh directory if it doesn't exist
-        mkdir -p ~/.ssh
+      - name: Checkout code
+        uses: actions/checkout@v3
 
-        # Save the private SSH key as a file
-        echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/aws_key.pem
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
 
-        # Set proper permissions for the key
-        chmod 600 ~/.ssh/aws_key.pem
+      - name: Verify and Start Instance
+        run: |
+          INSTANCE_ID="i-0e3f6782567fea03a"
+          REGION="us-east-1"
 
-        echo "SSH key configured."
-
-    - name: Verify Instance State
-      run: |
-        INSTANCE_ID="i-0e3f6782567fea03a"
-        # Ensure the instance is running
-        STATE=$(aws ec2 describe-instances --instance-ids $INSTANCE_ID --query "Reservations[*].Instances[*].State.Name" --output text)
-        if [ "$STATE" != "running" ]; then
-          echo "Starting instance $INSTANCE_ID..."
-          aws ec2 start-instances --instance-ids $INSTANCE_ID
-          aws ec2 wait instance-running --instance-ids $INSTANCE_ID
-        fi
-        echo "Instance $INSTANCE_ID is running."
+          # Ensure the instance is running
+          STATE=$(aws ec2 describe-instances --instance-ids $INSTANCE_ID --region $REGION --query "Reservations[*].Instances[*].State.Name" --output text)
+          if [ "$STATE" != "running" ]; then
+            echo "Starting instance $INSTANCE_ID..."
+            aws ec2 start-instances --instance-ids $INSTANCE_ID --region $REGION
+            aws ec2 wait instance-running --instance-ids $INSTANCE_ID --region $REGION
+          fi
+          echo "Instance $INSTANCE_ID is running."
 
     - name: Access EC2 Instance via SSH
       run: |
-        INSTANCE_ID="i-0e3f6782567fea03a"
         INSTANCE_PUBLIC_IP=$(aws ec2 describe-instances \
-          --instance-ids $INSTANCE_ID \
+          --instance-ids i-0e3f6782567fea03a \
           --query "Reservations[*].Instances[*].PublicIpAddress" \
           --output text)
         
