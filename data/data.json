@@ -1,0 +1,87 @@
+[
+    {
+        "ranking": "data",
+        "gender": "Men",
+        "schoolId": "2940",
+        "schoolName": "University of Tennessee Chattanooga",
+        "schoolLogo": "1667423799chattanooga-mocs-logo.webp",
+        "schoolLogoThumbnail": "thumb_1667423799chattanooga-mocs-logo.webp",
+        "division": "NCAA Division I",
+        "conference": "Southern Conference",
+        "region": "",
+        "boardName": "Chattanooga",
+        "rank": 33,
+        "rankingDate": "2024-03-13T00:00:00",
+        "averagePoints": 35.6278321343567,
+        "totalPoints": 237.518880895712,
+        "totalWeight": 6.66666666666667,
+        "regionalRank": 34,
+        "divisionalRank": 33,
+        "strokePlayEvents": 7,
+        "strokePlayRounds": 20,
+        "matchPlayEvents": 0,
+        "matchPlayRounds": 0,
+        "eventsWon": 2,
+        "eventsTop3": 6,
+        "strengthOfSchedule": -0.280688838385825,
+        "strengthOfScheduleRank": 80,
+        "averageScore": 284.45,
+        "adjustedScore": 280.122310568011,
+        "winLossTie": "79-23-0",
+        "startDate": null,
+        "endDate": null
+    },
+    {
+        "team": "data",
+        "result": "success",
+        "size": 1,
+        "results": [
+            {
+                "gender": "Women",
+                "schoolId": "7832",
+                "schoolName": "Abilene Christian dupe",
+                "division": "NCAA Division II",
+                "conference": "",
+                "boardName": "Abilene Christian",
+                "rank": 0,
+                "startDate": null,
+                "endDate": null
+            }
+        ]
+    },
+    {
+        "schedule":"data",
+        
+        "state": "Tennessee",
+        "city": "Oak Ridge",
+        "hostId": "3657",
+        "gender": "Men",
+        "hostName": "Roane State Community College",
+        "hostBoardName": "Roane State CC",
+        "hostType": "SCHOOL",
+        "schoolLogo": "upload/RoaneStateCC-254c8e9b-e1d2-429c-a937-915ea953143e",
+        "schoolLogoThumbnail": "thumb_1692631189Roane-State-150x150.webp",
+        "division": "NJCAA II",
+        "tournamentId": "231929",
+        "tournamentName": "The Atomic City Classic",
+        "eventType": "Stroke Play",
+        "startDate": "2024-10-21T00:00:00.000Z",
+        "endDate": "2024-10-22T00:00:00.000Z",
+        "tournamentLogo": "upload/RoaneStateCC-254c8e9b-e1d2-429c-a937-915ea953143e",
+        "venue": "Oak Ridge CC - Oak Ridge - Tennessee",
+        "inviteType": "team",
+        "hasResults": false,
+        "isComplete": false,
+        "competingSchools": [
+            "3638",
+            "4177",
+            "3126",
+            "2561",
+            "2175",
+            "3893",
+            "2808"
+        ],
+        "numTeamPlayers": 5,
+        "numTeamScoring": 4
+    }
+]

@@ -1,0 +1,16 @@
+{
+  "name": "k6-load-testing",
+  "version": "1.0.0",
+  "description": "",
+  "main": "latest-leaderboard-test.js",
+  "type": "module",
+  "scripts": {
+    "k6:run-tests":"k6 run run.test.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "k6-html-reporter": "^1.0.5"
+  }
+}

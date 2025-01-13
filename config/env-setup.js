@@ -1,0 +1,1 @@
+export let baseUrl = "https://stage-blue.stagescoreboard.clippd.com";
