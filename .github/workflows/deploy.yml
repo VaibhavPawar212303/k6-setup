@@ -45,7 +45,7 @@ jobs:
         run: |
           INSTANCE_ID="i-0e3f6782567fea03a"
           REGION="us-east-1"
-          COMMAND="k6 --version"
+          COMMAND="k6 run --out influxdb=http://98.84.46.109/8086/scoreboard script.js"
 
           # Send command to EC2 instance using SSM
           COMMAND_ID=$(aws ssm send-command \
