@@ -67,7 +67,7 @@ jobs:
           fi
 
           echo "Connecting to instance $INSTANCE_ID at $INSTANCE_PUBLIC_IP..."
-          ssh -o StrictHostKeyChecking=no -i ~/.ssh/aws_key.pem vaibhav@$INSTANCE_PUBLIC_IP "$COMMAND"
+          ssh -o StrictHostKeyChecking=no -i ~/.ssh/aws_key.pem sony_user1@$INSTANCE_PUBLIC_IP "$COMMAND"
         env:
           AWS_DEFAULT_REGION: us-east-1
           AWS_REGION: us-east-1
