@@ -1,20 +1,28 @@
 version: 0.2
-
+ 
 phases:
   install:
     runtime-versions:
       nodejs: 20
+      golang: 1.21
     commands:
       - sudo gpg -k
       - sudo gpg --no-default-keyring --keyring /usr/share/keyrings/k6-archive-keyring.gpg --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys C5AD17C747E3415A3642D57D77C6C491D6AC1D69
       - echo "deb [signed-by=/usr/share/keyrings/k6-archive-keyring.gpg] https://dl.k6.io/deb stable main" | sudo tee /etc/apt/sources.list.d/k6.list
       - sudo apt-get update
       - sudo apt-get install k6
-
+      - go install go.k6.io/xk6/cmd/xk6@latest
+      - xk6 build --with github.com/kubeshop/xk6-tracetest@latest
+      - export K6_BROWSER_ENABLED=true
       - npm ci
+      - ls
   build:
     commands:
-      - npm run k6:run-tests
+      - k6 run --out web-dashboard=report=./reports/test-report-dashboard.html run.test.js
+      - cd reports
+      - ls 
 artifacts:
   files:
-    - report/testreport.html
+    - reports/testreport.html
+    - reports/test-report-dashboard.html
+ 
