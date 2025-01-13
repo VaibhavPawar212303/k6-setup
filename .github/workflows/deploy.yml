@@ -1,4 +1,4 @@
-name: Get EC2 Instance by Name
+name: Get All EC2 Instances
 
 on:
   push:
@@ -6,7 +6,7 @@ on:
       - main
 
 jobs:
-  retrieve-instance-by-name:
+  retrieve-instances:
     runs-on: ubuntu-latest
     
     steps:
@@ -18,12 +18,12 @@ jobs:
       with:
         aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
         aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        aws-region: us-east-1  # Use the correct region where your instance exists
+        aws-region: us-east-1
 
     - name: Check AWS CLI version
       run: aws --version
 
-    - name: Get EC2 Instance by Name with Debugging
+    - name: Get All EC2 Instances
       run: |
-        echo "Fetching EC2 instance with the name"
-        aws ec2 describe-instances --filters "Name=tag:Name,Values=k6-master" --query "Reservations[*].Instances[*].InstanceId" --output json --debug
+        echo "Fetching all EC2 instances..."
+        aws ec2 describe-instances --query 'Reservations[*].Instances[*].Name' --output json
