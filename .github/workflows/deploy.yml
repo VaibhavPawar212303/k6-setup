@@ -44,15 +44,7 @@ jobs:
           INSTANCE_ID="i-0e3f6782567fea03a"
           REGION="us-east-1"
           SSH_KEY="~/.ssh/aws_key.pem"
-
-          # Retrieve the IPv6 address of the instance
-          IPV6_ADDRESS=$(aws ec2 describe-instances --instance-ids $INSTANCE_ID --region $REGION --query "Reservations[*].Instances[*].NetworkInterfaces[*].Ipv6Addresses[*].Ipv6Address" --output text)
-
-          if [ -z "$IPV6_ADDRESS" ]; then
-            echo "IPv6 address for instance $INSTANCE_ID is not available."
-            exit 1
-          fi
-
+          
           echo "Connecting to instance $INSTANCE_ID at $IPV6_ADDRESS..."
 
           # List directory contents
