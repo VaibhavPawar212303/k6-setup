@@ -22,6 +22,7 @@ jobs:
       - name: Connect to EC2 instance
         run: |
           INSTANCE_PUBLIC_DNS="ec2-98-84-46-109.compute-1.amazonaws.com"  # Public DNS of your EC2 instance
-          ssh -i ~/.ssh/bot.pem ubuntu@$INSTANCE_PUBLIC_DNS "echo 'Connected successfully!'"
+          # Automatically accept the host key
+          ssh -o StrictHostKeyChecking=no -i ~/.ssh/bot.pem ubuntu@$INSTANCE_PUBLIC_DNS "echo 'Connected successfully!'"
         env:
           AWS_SSH_KEY: ${{ secrets.AWS_SSH_KEY }}
