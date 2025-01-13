@@ -1,4 +1,4 @@
-name: Get All EC2 Instances
+name: Check EC2 Instance Directory
 
 on:
   push:
@@ -6,24 +6,21 @@ on:
       - main
 
 jobs:
-  retrieve-instances:
+  check-directory:
     runs-on: ubuntu-latest
-    
-    steps:
-    - name: Checkout Repository
-      uses: actions/checkout@v3
 
+    steps:
     - name: Set up AWS CLI
       uses: aws-actions/configure-aws-credentials@v2
       with:
         aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
         aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        aws-region: us-east-1
+        aws-region: us-east-1  # Replace with your EC2 region
 
-    - name: Check AWS CLI version
-      run: aws --version
-
-    - name: Get All EC2 Instances
+    - name: Check directory in EC2 instance
       run: |
-        echo "Fetching all EC2 instances..."
-        aws ec2 describe-instances --query 'Reservations[*].Instances[*].InstanceId' --output json
+        INSTANCE_ID="i-0e3f6782567fea03a"
+        COMMAND="ls"
+        COMMAND_OUTPUT=$(aws ssm send-command --instance-ids $INSTANCE_ID --document-name "AWS-RunShellScript" --parameters "commands=[\"$COMMAND\"]" --query "CommandInvocations[0].CommandPlugins[0].Output" --output text)
+        echo "Directory contents of $DIRECTORY:"
+        echo "$COMMAND_OUTPUT"
