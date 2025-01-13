@@ -48,26 +48,31 @@ jobs:
           fi
           echo "Instance $INSTANCE_ID is running."
 
-      - name: Execute command on instance using AWS CLI
+      - name: Execute command on instance using AWS SSM
         run: |
           INSTANCE_ID="i-0e3f6782567fea03a"
           REGION="us-east-1"
           COMMAND="ls -la"
 
-          # Get the public IP of the instance
-          INSTANCE_PUBLIC_IP=$(aws ec2 describe-instances \
+          # Send command to EC2 instance using SSM
+          COMMAND_ID=$(aws ssm send-command \
             --instance-ids $INSTANCE_ID \
-            --query "Reservations[*].Instances[*].PublicIpAddress" \
-            --output text \
-            --region $REGION)
+            --document-name "AWS-RunShellScript" \
+            --parameters commands=["$COMMAND"] \
+            --region $REGION \
+            --query "Command.CommandId" \
+            --output text)
 
-          if [ -z "$INSTANCE_PUBLIC_IP" ]; then
-            echo "Public IP not found for instance $INSTANCE_ID. Ensure it has a public IP assigned."
-            exit 1
-          fi
+          # Wait for command to complete
+          aws ssm wait command-executed --command-id $COMMAND_ID --instance-id $INSTANCE_ID --region $REGION
 
-          echo "Connecting to instance $INSTANCE_ID at $INSTANCE_PUBLIC_IP..."
-          ssh -o StrictHostKeyChecking=no -i ~/.ssh/aws_key.pem sony_user1@$INSTANCE_PUBLIC_IP "$COMMAND"
+          # Get command output
+          aws ssm get-command-invocation \
+            --command-id $COMMAND_ID \
+            --instance-id $INSTANCE_ID \
+            --region $REGION \
+            --query "StandardOutputContent" \
+            --output text
         env:
           AWS_DEFAULT_REGION: us-east-1
           AWS_REGION: us-east-1
