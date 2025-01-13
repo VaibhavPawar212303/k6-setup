@@ -56,6 +56,6 @@ jobs:
           echo "Connecting to instance $INSTANCE_ID at $IPV6_ADDRESS..."
 
           # List directory contents
-          ssh -i $SSH_KEY vaibhav@$IPV6_ADDRESS "ls -al"
+          ssh -i $SSH_KEY vaibhav@ec2-98-84-111-11.compute-1.amazonaws.com "ls -al"
         env:
           AWS_DEFAULT_REGION: us-east-1
