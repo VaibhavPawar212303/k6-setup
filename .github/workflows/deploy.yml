@@ -17,7 +17,7 @@ jobs:
         run: |
           mkdir -p ~/.ssh
           echo "$AWS_SSH_PRIVATE_KEY" > ~/.ssh/key.pem
-          chmod 400 ~/.ssh/bot.pem
+          chmod 400 ~/.ssh/key.pem
 
       - name: Connect to EC2 instance
         run: |
