@@ -26,4 +26,4 @@ jobs:
     - name: Get All EC2 Instances
       run: |
         echo "Fetching all EC2 instances..."
-        aws ec2 describe-instances --query 'Reservations[*].Instances[*].Name' --output json
+        aws ec2 describe-instances --query 'Reservations[*].Instances[*].InstanceId' --output json
