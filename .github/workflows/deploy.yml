@@ -1,4 +1,4 @@
-name: Check EC2 Instance Directory
+name: Access EC2 Instance and Check Directory
 
 on:
   push:
@@ -15,12 +15,45 @@ jobs:
       with:
         aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
         aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        aws-region: us-east-1  # Replace with your EC2 region
+        aws-region: us-east-1  # Replace with your region
 
-    - name: Check directory in EC2 instance
+    - name: Ensure EC2 Instance is Running
       run: |
         INSTANCE_ID="i-0e3f6782567fea03a"
-        COMMAND="ls"
-        COMMAND_OUTPUT=$(aws ssm send-command --instance-ids $INSTANCE_ID --document-name "AWS-RunShellScript" --parameters "commands=[\"$COMMAND\"]" --query "CommandInvocations[0].CommandPlugins[0].Output" --output text)
+        # Check the instance state (should be running)
+        STATE=$(aws ec2 describe-instances --instance-ids $INSTANCE_ID --query "Reservations[*].Instances[*].State.Name" --output text)
+        if [ "$STATE" != "running" ]; then
+          echo "Starting the instance..."
+          aws ec2 start-instances --instance-ids $INSTANCE_ID
+          # Wait for the instance to start
+          aws ec2 wait instance-running --instance-ids $INSTANCE_ID
+        else
+          echo "Instance is already running."
+        fi
+
+    - name: Check if SSM Agent is Running
+      run: |
+        INSTANCE_ID="i-0e3f6782567fea03a"
+        # Verify if SSM agent is installed and running
+        STATUS=$(aws ssm describe-instance-information --filters "Key=InstanceIds,Value=$INSTANCE_ID" --query "InstanceInformationList[0].PingStatus" --output text)
+        if [ "$STATUS" != "Online" ]; then
+          echo "SSM agent is not running or the instance is not registered with SSM. Please check the instance."
+          exit 1
+        else
+          echo "SSM agent is running and the instance is registered."
+        fi
+
+    - name: Check Directory in EC2 Instance
+      run: |
+        INSTANCE_ID="i-0e3f6782567fea03a"
+        DIRECTORY="/path/to/directory"  # Replace with the desired directory path
+        COMMAND="ls $DIRECTORY"
+        # Run the ls command on the instance via SSM
+        COMMAND_OUTPUT=$(aws ssm send-command \
+          --instance-ids $INSTANCE_ID \
+          --document-name "AWS-RunShellScript" \
+          --parameters "commands=[\"$COMMAND\"]" \
+          --query "CommandInvocations[0].CommandPlugins[0].Output" \
+          --output text)
         echo "Directory contents of $DIRECTORY:"
         echo "$COMMAND_OUTPUT"
