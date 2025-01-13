@@ -1,59 +1,29 @@
-name: AWS EC2 Workflow
+name: Get All EC2 Instances
 
 on:
-  workflow_dispatch:
+  push:
+    branches:
+      - main
 
 jobs:
-  manage-ec2-instance:
+  retrieve-instances:
     runs-on: ubuntu-latest
+    
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
+    - name: Checkout Repository
+      uses: actions/checkout@v3
 
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v2
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: us-east-1
+    - name: Set up AWS CLI
+      uses: aws-actions/configure-aws-credentials@v2
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: us-east-1
 
-      - name: Set up SSH Key
-        run: |
-          mkdir -p ~/.ssh
-          echo "${{ secrets.AWS_SSH_PRIVATE_KEY }}" > ~/.ssh/aws_key.pem
-          chmod 600 ~/.ssh/aws_key.pem
-          echo "SSH key configured."
+    - name: Check AWS CLI version
+      run: aws --version
 
-      - name: Verify and Start Instance
-        run: |
-          INSTANCE_ID="i-0e3f6782567fea03a"
-          REGION="us-east-1"
-
-          # Ensure the instance is running
-          STATE=$(aws ec2 describe-instances --instance-ids $INSTANCE_ID --region $REGION --query "Reservations[*].Instances[*].State.Name" --output text)
-          if [ "$STATE" != "running" ]; then
-            echo "Starting instance $INSTANCE_ID..."
-            aws ec2 start-instances --instance-ids $INSTANCE_ID --region $REGION
-            aws ec2 wait instance-running --instance-ids $INSTANCE_ID --region $REGION
-          fi
-          echo "Instance $INSTANCE_ID is running."
-
-    - name: Access EC2 Instance via SSH
+    - name: Get All EC2 Instances
       run: |
-        INSTANCE_PUBLIC_IP=$(aws ec2 describe-instances \
-          --instance-ids i-0e3f6782567fea03a \
-          --query "Reservations[*].Instances[*].PublicIpAddress" \
-          --output text)
-        
-        if [ -z "$INSTANCE_PUBLIC_IP" ]; then
-          echo "Public IP not found for instance $INSTANCE_ID. Ensure it has a public IP assigned."
-          exit 1
-        fi
-        
-        echo "Connecting to instance $INSTANCE_ID at $INSTANCE_PUBLIC_IP..."
-        ssh -o StrictHostKeyChecking=no -i ~/.ssh/aws_key.pem ec2-user@$INSTANCE_PUBLIC_IP "ls -la"
-      env:
-        AWS_DEFAULT_REGION: us-east-1
-        AWS_REGION: us-east-1
-        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        echo "Fetching all EC2 instances..."
+        aws ec2 describe-instances --query 'Reservations[*].Instances[*].InstanceId' --output json
