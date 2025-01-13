@@ -1,53 +1,27 @@
-name: AWS EC2 Workflow
+name: Connect to EC2 Instance
 
 on:
-  workflow_dispatch:
+  push:
+    branches:
+      - main  # Trigger on push to the main branch, modify if needed.
 
 jobs:
-  manage-ec2-instance:
+  ssh-connect:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
+      - name: Checkout repository
+        uses: actions/checkout@v2
 
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v2
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: us-east-1
-
-      - name: Set up SSH Key
+      - name: Set up SSH private key
         run: |
           mkdir -p ~/.ssh
-          echo "${{ secrets.AWS_SSH_PRIVATE_KEY }}" > ~/.ssh/aws_key.pem
-          chmod 600 ~/.ssh/aws_key.pem
-          echo "SSH key configured."
+          echo "$AWS_SSH_PRIVATE_KEY" > ~/.ssh/bot.pem
+          chmod 400 ~/.ssh/bot.pem
 
-      - name: Verify and Start Instance
+      - name: Connect to EC2 instance
         run: |
-          INSTANCE_ID="i-0e3f6782567fea03a"
-          REGION="us-east-1"
-
-          # Ensure the instance is running
-          STATE=$(aws ec2 describe-instances --instance-ids $INSTANCE_ID --region $REGION --query "Reservations[*].Instances[*].State.Name" --output text)
-          if [ "$STATE" != "running" ]; then
-            echo "Starting instance $INSTANCE_ID..."
-            aws ec2 start-instances --instance-ids $INSTANCE_ID --region $REGION
-            aws ec2 wait instance-running --instance-ids $INSTANCE_ID --region $REGION
-          fi
-          echo "Instance $INSTANCE_ID is running."
-
-      - name: Connect to Instance via IPv6 and List Directory
-        run: |
-          INSTANCE_ID="i-0e3f6782567fea03a"
-          REGION="us-east-1"
-          SSH_KEY="~/.ssh/aws_key.pem"
-          
-          echo "Connecting to instance $INSTANCE_ID at $IPV6_ADDRESS..."
-
-          # List directory contents
-          ssh -i $SSH_KEY vaibhav@ec2-98-84-111-11.compute-1.amazonaws.com "ls -al"
+          INSTANCE_PUBLIC_DNS="ec2-98-84-46-109.compute-1.amazonaws.com"  # Public DNS of your EC2 instance
+          ssh -i ~/.ssh/bot.pem ubuntu@$INSTANCE_PUBLIC_DNS "echo 'Connected successfully!'"
         env:
-          AWS_DEFAULT_REGION: us-east-1
+          AWS_SSH_KEY: ${{ secrets.AWS_SSH_KEY }}
