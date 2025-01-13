@@ -18,9 +18,12 @@ jobs:
       with:
         aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
         aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        aws-region: us-east-1  # Use a valid region here
+        aws-region: us-east-1  # Use the correct region where your instance exists
 
-    - name: Get EC2 Instance by Name
+    - name: Check AWS CLI version
+      run: aws --version
+
+    - name: Get EC2 Instance by Name with Debugging
       run: |
-        echo "Fetching EC2 instance with the name 'v'..."
-        aws ec2 describe-instances --filters "Name=tag:Name,Values=v" --query "Reservations[*].Instances[*].InstanceId" --output json
+        echo "Fetching EC2 instance with the name"
+        aws ec2 describe-instances --filters "Name=tag:Name,Values=k6-master" --query "Reservations[*].Instances[*].InstanceId" --output json --debug
