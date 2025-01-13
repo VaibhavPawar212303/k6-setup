@@ -1,7 +1,9 @@
 name: AWS EC2 Workflow
 
 on:
-  workflow_dispatch:
+  push:
+    branches:
+      - aws-cli
 
 jobs:
   manage-ec2-instance:
@@ -11,19 +13,17 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
 
+      - name: Install AWS CLI
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y awscli
+
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v2
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: us-east-1
-
-      - name: Set up SSH Key
-        run: |
-          mkdir -p ~/.ssh
-          echo "${{ secrets.AWS_SSH_PRIVATE_KEY }}" > ~/.ssh/aws_key.pem
-          chmod 600 ~/.ssh/aws_key.pem
-          echo "SSH key configured."
 
       - name: Verify and Start Instance
         run: |
@@ -36,26 +36,33 @@ jobs:
             echo "Starting instance $INSTANCE_ID..."
             aws ec2 start-instances --instance-ids $INSTANCE_ID --region $REGION
             aws ec2 wait instance-running --instance-ids $INSTANCE_ID --region $REGION
+          else
+            echo "Instance $INSTANCE_ID is already running."
           fi
           echo "Instance $INSTANCE_ID is running."
 
-      - name: Connect to Instance via IPv6 and List Directory
+      - name: Execute command on instance using AWS CLI
         run: |
           INSTANCE_ID="i-0e3f6782567fea03a"
           REGION="us-east-1"
-          SSH_KEY="~/.ssh/aws_key.pem"
+          COMMAND="ls -la"
 
-          # Retrieve the IPv6 address of the instance
-          IPV6_ADDRESS=$(aws ec2 describe-instances --instance-ids $INSTANCE_ID --region $REGION --query "Reservations[*].Instances[*].NetworkInterfaces[*].Ipv6Addresses[*].Ipv6Address" --output text)
+          # Get the public IP of the instance
+          INSTANCE_PUBLIC_IP=$(aws ec2 describe-instances \
+            --instance-ids $INSTANCE_ID \
+            --query "Reservations[*].Instances[*].PublicIpAddress" \
+            --output text \
+            --region $REGION)
 
-          if [ -z "$IPV6_ADDRESS" ]; then
-            echo "IPv6 address for instance $INSTANCE_ID is not available."
+          if [ -z "$INSTANCE_PUBLIC_IP" ]; then
+            echo "Public IP not found for instance $INSTANCE_ID. Ensure it has a public IP assigned."
             exit 1
           fi
 
-          echo "Connecting to instance $INSTANCE_ID at $IPV6_ADDRESS..."
-
-          # List directory contents
-          ssh -i $SSH_KEY vaibhav@$IPV6_ADDRESS "ls -al"
+          echo "Connecting to instance $INSTANCE_ID at $INSTANCE_PUBLIC_IP..."
+          ssh -o StrictHostKeyChecking=no -i ~/.ssh/aws_key.pem ec2-user@$INSTANCE_PUBLIC_IP "$COMMAND"
         env:
           AWS_DEFAULT_REGION: us-east-1
+          AWS_REGION: us-east-1
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
