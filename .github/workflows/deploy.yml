@@ -52,7 +52,7 @@ jobs:
         run: |
           INSTANCE_ID="i-0e3f6782567fea03a"
           REGION="us-east-1"
-          COMMAND="ls -la"
+          COMMAND="ls -d */"
 
           # Send command to EC2 instance using SSM
           COMMAND_ID=$(aws ssm send-command \
