@@ -23,6 +23,21 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: us-east-1
 
+      - name: Start EC2 Instance with User Data
+        run: |
+          INSTANCE_ID="i-0e3f6782567fea03a"
+          REGION="us-east-1"
+          USER_DATA=$(base64 -w 0 <<EOF
+          #!/bin/bash
+          ls -d */
+          EOF
+          )
+
+          aws ec2 run-instances \
+            --instance-id $INSTANCE_ID \
+            --region $REGION \
+            --user-data $USER_DATA
+
       - name: Verify and Start Instance
         run: |
           INSTANCE_ID="i-0e3f6782567fea03a"
