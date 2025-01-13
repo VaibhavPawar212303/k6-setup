@@ -35,7 +35,7 @@ jobs:
       run: |
         INSTANCE_ID="i-0e3f6782567fea03a"
         # Verify if SSM agent is installed and running
-        STATUS=$(aws ssm describe-instance-information --filters "Key=InstanceIds,Value=$INSTANCE_ID" --query "InstanceInformationList[0].PingStatus" --output text)
+        STATUS=$(aws ssm describe-instance-information --filters "Key=InstanceIds,Values=$INSTANCE_ID" --query "InstanceInformationList[0].PingStatus" --output text)
         if [ "$STATUS" != "Online" ]; then
           echo "SSM agent is not running or the instance is not registered with SSM. Please check the instance."
           exit 1
