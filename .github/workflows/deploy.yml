@@ -29,6 +29,8 @@ jobs:
             echo "Starting instance $INSTANCE_ID..."
             aws ec2 start-instances --instance-ids $INSTANCE_ID --region $REGION
             aws ec2 wait instance-running --instance-ids $INSTANCE_ID --region $REGION
+          else
+            echo "Instance $INSTANCE_ID is already running."
           fi
           echo "Instance $INSTANCE_ID is running."
 
