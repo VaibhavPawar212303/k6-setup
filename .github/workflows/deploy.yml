@@ -57,20 +57,24 @@ jobs:
           REPO_URL="https://github.com/VaibhavPawar212303/k6-setup.git"
           COMMAND="git clone $REPO_URL && cd k6-setup && sudo k6 run --out influxdb=http://35.170.59.91:8086/scoreboard script.js &"
 
-          # Wait for 30 seconds to ensure the instance is in a valid state
-          sleep 30
-
-          # Check the instance state again
-          STATE=$(aws ec2 describe-instances --instance-ids $INSTANCE_ID --region $REGION --query "Reservations[*].Instances[*].State.Name" --output text)
-          if [ "$STATE" == "running" ]; then
-            # Send command to EC2 instance using SSM
-            aws ssm send-command \
-              --instance-ids $INSTANCE_ID \
-              --document-name "AWS-RunShellScript" \
-              --parameters commands=["$COMMAND"] \
-              --region $REGION
-          else
-            echo "Instance $INSTANCE_ID is not in a running state."
+          # Retry mechanism to check the instance state
+          for i in {1..5}; do
+            STATE=$(aws ec2 describe-instances --instance-ids $INSTANCE_ID --region $REGION --query "Reservations[*].Instances[*].State.Name" --output text)
+            if [ "$STATE" == "running" ]; then
+              # Send command to EC2 instance using SSM
+              aws ssm send-command \
+                --instance-ids $INSTANCE_ID \
+                --document-name "AWS-RunShellScript" \
+                --parameters commands=["$COMMAND"] \
+                --region $REGION
+              break
+            else
+              echo "Instance $INSTANCE_ID is not in a running state. Retrying in 30 seconds..."
+              sleep 30
+            fi
+          done
+          if [ "$STATE" != "running" ]; then
+            echo "Instance $INSTANCE_ID is not in a running state after multiple attempts."
             exit 1
           fi
         env:
@@ -91,6 +95,7 @@ jobs:
             --image-id $AMI_ID \
             --instance-type $INSTANCE_TYPE \
             --key-name $KEY_NAME \
+            --tag-specifications 'ResourceType=instance,Tags=[{Key=Name,Value=k6-worker}]' \
             --query "Instances[0].InstanceId" \
             --output text \
             --region $REGION)
