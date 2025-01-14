@@ -75,7 +75,7 @@ jobs:
           REGION="us-east-1"
           AMI_ID="ami-0e2c8caa4b6378d8c" # Replace with your preferred AMI ID
           INSTANCE_TYPE="t2.micro" # Ensure this matches the AMI architecture
-          KEY_NAME="bot.pem" # Replace with your key pair name
+          KEY_NAME="vaibhav.pem" # Replace with your key pair name
 
           INSTANCE_ID=$(aws ec2 run-instances \
             --image-id $AMI_ID \
