@@ -6,12 +6,12 @@ on:
       - aws-cli
 
 jobs:
-  manage-ec2-instance:
+  manage-ec2-instances:
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v3
 
       - name: Install AWS CLI
         run: |
@@ -19,7 +19,7 @@ jobs:
           sudo apt-get install -y awscli
 
       - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@v2
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
@@ -41,11 +41,12 @@ jobs:
           fi
           echo "Instance $INSTANCE_ID is running."
 
-      - name: Execute command on instance using AWS SSM
+      - name: Upload code to instance and execute command using AWS SSM
         run: |
           INSTANCE_ID="i-0e3f6782567fea03a"
           REGION="us-east-1"
-          COMMAND="sudo k6 run --out influxdb=http://44.214.108.106:8086/scoreboard script.js &"
+          REPO_URL="https://github.com/VaibhavPawar212303/k6-setup.git"
+          COMMAND="git clone $REPO_URL && cd your-repo && sudo k6 run --out influxdb=http://44.214.108.106:8086/scoreboard script.js &"
 
           # Send command to EC2 instance using SSM
           aws ssm send-command \
