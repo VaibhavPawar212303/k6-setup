@@ -11,13 +11,13 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v3
 
       - name: Install AWS CLI
         run: |
           curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
           unzip awscliv2.zip
-          sudo ./aws/install --update
+          sudo ./aws/install
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v3
@@ -26,7 +26,7 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: us-east-1
 
-      - name: Verify and Start Instance
+      - name: Verify and Start Existing Instance
         run: |
           INSTANCE_ID="i-0e3f6782567fea03a"
           REGION="us-east-1"
@@ -42,7 +42,7 @@ jobs:
           fi
           echo "Instance $INSTANCE_ID is running."
 
-      - name: Upload code to instance and execute command using AWS SSM
+      - name: Upload code to existing instance and execute command using AWS SSM
         run: |
           INSTANCE_ID="i-0e3f6782567fea03a"
           REGION="us-east-1"
@@ -50,6 +50,56 @@ jobs:
           COMMAND="git clone $REPO_URL && cd k6-setup && sudo k6 run --out influxdb=http://44.214.108.106:8086/scoreboard script.js &"
 
           # Send command to EC2 instance using SSM
+          aws ssm send-command \
+            --instance-ids $INSTANCE_ID \
+            --document-name "AWS-RunShellScript" \
+            --parameters commands=["$COMMAND"] \
+            --region $REGION
+        env:
+          AWS_DEFAULT_REGION: us-east-1
+          AWS_REGION: us-east-1
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+
+      - name: Create New EC2 Instance
+        id: create_instance
+        run: |
+          REGION="us-east-1"
+          AMI_ID="ami-0c55b159cbfafe1f0" # Replace with your preferred AMI ID
+          INSTANCE_TYPE="t2.micro"
+          KEY_NAME="bot.pem" # Replace with your key pair name
+
+          INSTANCE_ID=$(aws ec2 run-instances \
+            --image-id $AMI_ID \
+            --instance-type $INSTANCE_TYPE \
+            --key-name $KEY_NAME \
+            --query "Instances[0].InstanceId" \
+            --output text \
+            --region $REGION)
+
+          echo "NEW_INSTANCE_ID=$INSTANCE_ID" >> $GITHUB_ENV
+
+      - name: Install k6 and Chromium on New Instance
+        run: |
+          INSTANCE_ID=${{ env.NEW_INSTANCE_ID }}
+          REGION="us-east-1"
+          INSTALL_COMMANDS="sudo apt-get update && sudo apt-get install -y k6 chromium-browser"
+
+          # Send install commands to new EC2 instance using SSM
+          aws ssm send-command \
+            --instance-ids $INSTANCE_ID \
+            --document-name "AWS-RunShellScript" \
+            --parameters commands=["$INSTALL_COMMANDS"] \
+            --region $REGION
+
+      - name: Run command on New Instance
+        run: |
+          INSTANCE_ID=${{ env.NEW_INSTANCE_ID }}
+          REGION="us-east-1"
+          REPO_URL="https://github.com/VaibhavPawar212303/k6-setup.git"
+          COMMAND="git clone $REPO_URL && cd k6-setup && sudo k6 run --out influxdb=http://44.214.108.106:8086/scoreboard script.js &"
+
+          # Send command to new EC2 instance using SSM
           aws ssm send-command \
             --instance-ids $INSTANCE_ID \
             --document-name "AWS-RunShellScript" \
