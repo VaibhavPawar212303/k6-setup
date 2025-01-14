@@ -57,12 +57,22 @@ jobs:
           REPO_URL="https://github.com/VaibhavPawar212303/k6-setup.git"
           COMMAND="git clone $REPO_URL && cd k6-setup && sudo k6 run --out influxdb=http://35.170.59.91:8086/scoreboard script.js &"
 
-          # Send command to EC2 instance using SSM
-          aws ssm send-command \
-            --instance-ids $INSTANCE_ID \
-            --document-name "AWS-RunShellScript" \
-            --parameters commands=["$COMMAND"] \
-            --region $REGION
+          # Wait for 30 seconds to ensure the instance is in a valid state
+          sleep 30
+
+          # Check the instance state again
+          STATE=$(aws ec2 describe-instances --instance-ids $INSTANCE_ID --region $REGION --query "Reservations[*].Instances[*].State.Name" --output text)
+          if [ "$STATE" == "running" ]; then
+            # Send command to EC2 instance using SSM
+            aws ssm send-command \
+              --instance-ids $INSTANCE_ID \
+              --document-name "AWS-RunShellScript" \
+              --parameters commands=["$COMMAND"] \
+              --region $REGION
+          else
+            echo "Instance $INSTANCE_ID is not in a running state."
+            exit 1
+          fi
         env:
           AWS_DEFAULT_REGION: us-east-1
           AWS_REGION: us-east-1
