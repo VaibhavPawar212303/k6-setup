@@ -73,7 +73,7 @@ jobs:
         id: create_instance
         run: |
           REGION="us-east-1"
-          AMI_ID="ami-0e2c8caa4b63788dc" # Replace with your preferred AMI ID
+          AMI_ID="ami-04b3c39a8a1c62b76" # Replace with your preferred AMI ID
           INSTANCE_TYPE="t2.micro"
           KEY_NAME="bot.pem" # Replace with your key pair name
 
