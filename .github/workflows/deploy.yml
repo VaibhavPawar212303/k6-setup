@@ -58,8 +58,9 @@ jobs:
           COMMAND="git clone $REPO_URL && cd k6-setup && sudo k6 run --out influxdb=http://35.170.59.91:8086/scoreboard script.js &"
 
           # Retry mechanism to check the instance state
-          for i in {1..5}; do
+          for i in {1..10}; do
             STATE=$(aws ec2 describe-instances --instance-ids $INSTANCE_ID --region $REGION --query "Reservations[*].Instances[*].State.Name" --output text)
+            echo "Attempt $i: Instance state is $STATE"
             if [ "$STATE" == "running" ]; then
               # Send command to EC2 instance using SSM
               aws ssm send-command \
@@ -90,11 +91,13 @@ jobs:
           AMI_ID="ami-0e2c8caa4b6378d8c" # Replace with your preferred AMI ID
           INSTANCE_TYPE="t2.micro" # Ensure this matches the AMI architecture
           KEY_NAME="vaibhav" # Replace with your key pair name without .pem extension
+          IAM_ROLE="testing" # Replace with your IAM role name
 
           INSTANCE_ID=$(aws ec2 run-instances \
             --image-id $AMI_ID \
             --instance-type $INSTANCE_TYPE \
             --key-name $KEY_NAME \
+            --iam-instance-profile Name=$IAM_ROLE \
             --tag-specifications 'ResourceType=instance,Tags=[{Key=Name,Value=k6-worker}]' \
             --query "Instances[0].InstanceId" \
             --output text \
