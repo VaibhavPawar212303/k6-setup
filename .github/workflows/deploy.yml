@@ -18,7 +18,6 @@ jobs:
           curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
           unzip awscliv2.zip
           sudo ./aws/install --update
-
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v3
         with:
@@ -26,34 +25,10 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: us-east-1
 
-      - name: Verify and Start Existing Instance or Create New One
+      - name: Verify and Start Existing Instance
         run: |
-          INSTANCE_NAME="k6-master"
+          INSTANCE_ID="i-0e3f6782567fea03a"
           REGION="us-east-1"
-          AMI_ID="ami-0e2c8caa4b6378d8c" # Replace with your preferred AMI ID
-          INSTANCE_TYPE="t2.micro" # Ensure this matches the AMI architecture
-          KEY_NAME="vaibhav" # Replace with your key pair name without .pem extension
-          IAM_ROLE="testing" # Replace with your IAM role name
-
-          # Get the instance ID by name
-          INSTANCE_ID=$(aws ec2 describe-instances --filters "Name=tag:Name,Values=$INSTANCE_NAME" --query "Reservations[*].Instances[*].InstanceId" --output text --region $REGION)
-
-          if [ -z "$INSTANCE_ID" ]; then
-            echo "Instance with name $INSTANCE_NAME not found. Creating a new instance..."
-            INSTANCE_ID=$(aws ec2 run-instances \
-              --image-id $AMI_ID \
-              --instance-type $INSTANCE_TYPE \
-              --key-name $KEY_NAME \
-              --iam-instance-profile Name=$IAM_ROLE \
-              --tag-specifications 'ResourceType=instance,Tags=[{Key=Name,Value=k6-master}]' \
-              --query "Instances[0].InstanceId" \
-              --output text \
-              --region $REGION)
-            echo "New instance created with ID $INSTANCE_ID"
-          else
-            echo "Instance with name $INSTANCE_NAME found with ID $INSTANCE_ID"
-          fi
-
           # Ensure the instance is running
           STATE=$(aws ec2 describe-instances --instance-ids $INSTANCE_ID --region $REGION --query "Reservations[*].Instances[*].State.Name" --output text)
           if [ "$STATE" != "running" ]; then
@@ -64,54 +39,56 @@ jobs:
             echo "Instance $INSTANCE_ID is already running."
           fi
           echo "Instance $INSTANCE_ID is running."
-
       - name: Ensure Instance is in a Valid State
         run: |
-          INSTANCE_NAME="k6-master"
+          INSTANCE_ID="i-0e3f6782567fea03a"
           REGION="us-east-1"
-
-          # Get the instance ID by name
-          INSTANCE_ID=$(aws ec2 describe-instances --filters "Name=tag:Name,Values=$INSTANCE_NAME" --query "Reservations[*].Instances[*].InstanceId" --output text --region $REGION)
-
-          if [ -z "$INSTANCE_ID" ]; then
-            echo "Instance with name $INSTANCE_NAME not found."
-            exit 1
-          fi
-
           # Wait until the instance is in a valid state
           aws ec2 wait instance-status-ok --instance-ids $INSTANCE_ID --region $REGION
-
-      - name: Create Image of k6-master
-        id: create_image
+      - name: Upload code to existing instance and execute command using AWS SSM
         run: |
-          INSTANCE_NAME="k6-master"
+          INSTANCE_ID="i-0e3f6782567fea03a"
           REGION="us-east-1"
-          IMAGE_NAME="k6-master-image"
-
-          # Get the instance ID by name
-          INSTANCE_ID=$(aws ec2 describe-instances --filters "Name=tag:Name,Values=$INSTANCE_NAME" --query "Reservations[*].Instances[*].InstanceId" --output text --region $REGION)
-
-          if [ -z "$INSTANCE_ID" ]; then
-            echo "Instance with name $INSTANCE_NAME not found."
+          REPO_URL="https://github.com/VaibhavPawar212303/k6-setup.git"
+          COMMAND="git clone $REPO_URL && cd k6-setup && sudo k6 run --out influxdb=http://35.170.59.91:8086/scoreboard script.js &"
+          # Retry mechanism to check the instance state
+          for i in {1..5}; do
+          for i in {1..10}; do
+            STATE=$(aws ec2 describe-instances --instance-ids $INSTANCE_ID --region $REGION --query "Reservations[*].Instances[*].State.Name" --output text)
+            echo "Attempt $i: Instance state is $STATE"
+            if [ "$STATE" == "running" ]; then
+              # Send command to EC2 instance using SSM
+              aws ssm send-command \
+                --instance-ids $INSTANCE_ID \
+                --document-name "AWS-RunShellScript" \
+                --parameters commands=["$COMMAND"] \
+                --region $REGION
+              break
+            else
+              echo "Instance $INSTANCE_ID is not in a running state. Retrying in 30 seconds..."
+              sleep 30
+            fi
+          done
+          if [ "$STATE" != "running" ]; then
+            echo "Instance $INSTANCE_ID is not in a running state after multiple attempts."
             exit 1
           fi
+        env:
+          AWS_DEFAULT_REGION: us-east-1
+          AWS_REGION: us-east-1
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
 
-          # Create an image of the instance
-          IMAGE_ID=$(aws ec2 create-image --instance-id $INSTANCE_ID --name $IMAGE_NAME --no-reboot --query "ImageId" --output text --region $REGION)
-          echo "IMAGE_ID=$IMAGE_ID" >> $GITHUB_ENV
-          echo "Image created with ID $IMAGE_ID"
-
-      - name: Create New EC2 Instance from Image
+      - name: Create New EC2 Instance
         id: create_instance
         run: |
           REGION="us-east-1"
+          AMI_ID="ami-0e2c8caa4b6378d8c" # Replace with your preferred AMI ID
           INSTANCE_TYPE="t2.micro" # Ensure this matches the AMI architecture
           KEY_NAME="vaibhav" # Replace with your key pair name without .pem extension
           IAM_ROLE="testing" # Replace with your IAM role name
-          IMAGE_ID=${{ env.IMAGE_ID }}
-
           INSTANCE_ID=$(aws ec2 run-instances \
-            --image-id $IMAGE_ID \
+            --image-id $AMI_ID \
             --instance-type $INSTANCE_TYPE \
             --key-name $KEY_NAME \
             --iam-instance-profile Name=$IAM_ROLE \
@@ -119,46 +96,30 @@ jobs:
             --query "Instances[0].InstanceId" \
             --output text \
             --region $REGION)
-
           echo "NEW_INSTANCE_ID=$INSTANCE_ID" >> $GITHUB_ENV
-          echo "NEW_INSTANCE_ID=$INSTANCE_ID" >> $GITHUB_ENV
-
       - name: Ensure New Instance is in a Valid State
         run: |
           INSTANCE_ID=${{ env.NEW_INSTANCE_ID }}
           REGION="us-east-1"
-
           # Wait until the new instance is in a valid state
           aws ec2 wait instance-status-ok --instance-ids $INSTANCE_ID --region $REGION
-
-      - name: Install k6, Chromium, Grafana, and InfluxDB on Instance
+      - name: Install k6 and Chromium on New Instance
         run: |
-          INSTANCE_NAME="k6-master"
+          INSTANCE_ID=${{ env.NEW_INSTANCE_ID }}
           REGION="us-east-1"
-          INSTALL_COMMANDS="sudo apt-get update && sudo apt-get install -y k6 chromium-browser grafana influxdb && sudo systemctl start grafana-server && sudo systemctl enable grafana-server && sudo systemctl start influxdb && sudo systemctl enable influxdb"
-
-          # Get the instance ID by name
-          INSTANCE_ID=$(aws ec2 describe-instances --filters "Name=tag:Name,Values=$INSTANCE_NAME" --query "Reservations[*].Instances[*].InstanceId" --output text --region $REGION)
-
-          if [ -z "$INSTANCE_ID" ]; then
-            echo "Instance with name $INSTANCE_NAME not found."
-            exit 1
-          fi
-
-          # Send install commands to EC2 instance using SSM
+          INSTALL_COMMANDS="sudo apt-get update && sudo apt-get install -y k6 chromium-browser"
+          # Send install commands to new EC2 instance using SSM
           aws ssm send-command \
             --instance-ids $INSTANCE_ID \
             --document-name "AWS-RunShellScript" \
             --parameters commands=["$INSTALL_COMMANDS"] \
             --region $REGION
-
-      - name: Run command on New Instance and Print k6 Version
+      - name: Run command on New Instance
         run: |
           INSTANCE_ID=${{ env.NEW_INSTANCE_ID }}
           REGION="us-east-1"
           REPO_URL="https://github.com/VaibhavPawar212303/k6-setup.git"
-          COMMAND="git clone $REPO_URL && cd k6-setup && sudo k6 run --out influxdb=http://35.170.59.91:8086/scoreboard script.js & && k6 version"
-
+          COMMAND="git clone $REPO_URL && cd k6-setup && sudo k6 run --out influxdb=http://35.170.59.91:8086/scoreboard script.js &"
           # Send command to new EC2 instance using SSM
           aws ssm send-command \
             --instance-ids $INSTANCE_ID \
